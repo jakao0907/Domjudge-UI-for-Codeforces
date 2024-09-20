@@ -1,13 +1,12 @@
-# Codeforces Verdict Hidden Tool
+# Domjudge UI for Codeforces
 
 ## Introduction
 
-The tool show codeforces submission status without which test case. 
-
-For competitors practicing for the domjudge environment.
-
-[Donwload from chrome extension store](https://chromewebstore.google.com/detail/codeforces-verdict-hidden/ednlfbgkjfmbnehaohbbpbngaeolegma
-)
+For ICPC competitors practicing for the DOMjudge UI in codeforces.
 
 ----
-![](assets/extension/status_sample.jpg)
+![](assets/extension/sample1.png)
+![](assets/extension/sample2.png)
+![](assets/extension/sample3.png)
+
+![](assets/extension/domjudge_ui_for_cf_demo.gif)

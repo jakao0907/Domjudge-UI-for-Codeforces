@@ -424,6 +424,9 @@ nav {
     color: #fff !important;
     background-color: #17a2b8  !important;
 }
+.score_pending {
+    background: #6666FF !important;
+}
 .btn-secondary {
     color: #fff;
     background-color: #6c757d;

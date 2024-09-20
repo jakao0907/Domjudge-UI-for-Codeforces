@@ -59,27 +59,43 @@ function parseSubmission(result){
     const reversedSubmissionResult = submissionResult.slice().reverse();
     for(let submission of reversedSubmissionResult){
         if(submission.index in problemStatus){
-            if(problemStatus[submission.index].passtime != -1)
-                continue;
-            else if(submission.verdict != "CORRECT"){
-                problemStatus[submission.index].rejected = problemStatus[submission.index].rejected + (submission.verdict == "COMPILER-ERROR" ? 0 : 1);
+            if(submission.verdict == "CORRECT"){
+                if(problemStatus[submission.index].passtime == -1)
+                    problemStatus[submission.index].passtime = submission.submitMinute;
+            }
+            else if(submission.verdict == "PENDING"){
+                problemStatus[submission.index].pendingNumber = problemStatus[submission.index].pendingNumber+1;
+                if(problemStatus[submission.index].pending == -1)
+                    problemStatus[submission.index].pending = submission.submitMinute;
             }
             else{
-                problemStatus[submission.index].passtime = submission.submitMinute;
+                problemStatus[submission.index].rejected = problemStatus[submission.index].rejected + (submission.verdict == "COMPILER-ERROR" ? 0 : 1);
             }
         }
         else{
             let newStatus;
-            if(submission.verdict != "CORRECT"){
+            if(submission.verdict == "PENDING"){
+                newStatus = {
+                    rejected: 0,
+                    passtime: -1,
+                    pending: submission.submitMinute,
+                    pendingNumber: 1
+                }
+            }
+            else if(submission.verdict != "CORRECT"){
                 newStatus = {
                     rejected: submission.verdict == "COMPILER-ERROR" ? 0 : 1,
-                    passtime: -1
+                    passtime: -1,
+                    pending: -1,
+                    pendingNumber: 0
                 }
             }
             else{
                 newStatus = {
                     rejected: 0,
-                    passtime: submission.submitMinute
+                    passtime: submission.submitMinute,
+                    pending: -1,
+                    pendingNumber: 0
                 }
             }
             problemStatus[submission.index] = newStatus;
@@ -319,9 +335,22 @@ function drawTeamsSummary(){
         if(!(problemIndex in problemStatus))
             tableHTML += `<td class="score_cell"></td>`;
         else if(problemStatus[problemIndex].passtime != -1){
-            const tryTime = problemStatus[problemIndex].rejected+1;
-            const tryString = tryTime.toString() + (tryTime > 1 ? " tries" : " try");
-            tableHTML += `<td class="score_cell"><a><div style="background:#60e760">${problemStatus[problemIndex].passtime}<span>${tryString}</span></div></a></td>`;
+            console.log(problemIndex, problemStatus[problemIndex].passtime, problemStatus[problemIndex].pending, problemStatus[problemIndex].pendingNumber);
+            if(problemStatus[problemIndex].passtime > problemStatus[problemIndex].pending && problemStatus[problemIndex].pendingNumber != 0){
+                const tryTime = problemStatus[problemIndex].rejected;
+                const tryString = tryTime.toString() + " + " + (problemStatus[problemIndex].pendingNumber).toString() + " tries";
+                tableHTML += `<td class="score_cell"><a><div style="background:#6666FF">&nbsp;<span>${tryString}</span></div></a></td>`;
+            }
+            else{
+                const tryTime = problemStatus[problemIndex].rejected+1;
+                const tryString = tryTime.toString() + (tryTime > 1 ? " tries" : " try");
+                tableHTML += `<td class="score_cell"><a><div style="background:#60e760">${problemStatus[problemIndex].passtime}<span>${tryString}</span></div></a></td>`;
+            }
+        }
+        else if(problemStatus[problemIndex].pendingNumber != 0){
+            const tryTime = problemStatus[problemIndex].rejected;
+            const tryString = tryTime.toString() + " + " + (problemStatus[problemIndex].pendingNumber).toString() + " tries";
+            tableHTML += `<td class="score_cell"><a><div style="background:#6666FF">&nbsp;<span>${tryString}</span></div></a></td>`;
         }
         else{
             const tryTime = problemStatus[problemIndex].rejected;
@@ -608,21 +637,53 @@ function submitButtomJquery(){
 
         function updateSubmitButtonState() {
 
-        var problemIndex = $("select[name=submittedProblemIndex]").val();
+            var problemIndex = $("select[name=submittedProblemIndex]").val();
+            var programType = $("select[name=programTypeId]").val();
+            var fileInput = $("input[name=sourceFile]").val();
 
-        updateFilesAndLimits();
-        if (problemIndex == "") {
-        $(".submit-form :submit").attr("disabled", "disabled");
-        } else {
+            console.log(fileInput);
+            updateFilesAndLimits();
 
-        $(".submit-form :submit").removeAttr("disabled");
-        }
+            if (fileInput != ""){
+                if(fileInput.endsWith(".c")){
+                    document.querySelector('select[name="programTypeId"]').value = "43";
+                }
+                else if(fileInput.endsWith(".cpp")){
+                    document.querySelector('select[name="programTypeId"]').value = "89";
+                }
+                else if(fileInput.endsWith(".java")){
+                    document.querySelector('select[name="programTypeId"]').value = "87";
+                }
+                else if(fileInput.endsWith(".py")){
+                    document.querySelector('select[name="programTypeId"]').value = "31";
+                }
+            }
+            if (problemIndex == "") {
+                $(".submit-form :submit").attr("disabled", "disabled");
+            } 
+            else if(programType == "0") {
+                $(".submit-form :submit").attr("disabled", "disabled");
+            }
+            else if (fileInput == ""){
+                $(".submit-form :submit").attr("disabled", "disabled");
+            }
+            else {
+                $(".submit-form :submit").removeAttr("disabled");
+            }
         }
 
         $("select[name=submittedProblemIndex]").bind('change', updateSubmitButtonState);
         $("select[name=submittedProblemIndex]").bind('keypress', updateSubmitButtonState);
         $("select[name=submittedProblemIndex]").bind('blur', updateSubmitButtonState);
         $("select[name=submittedProblemIndex]").bind('input', updateSubmitButtonState);
+        $("select[name=programTypeId]").bind('change', updateSubmitButtonState);
+        $("select[name=programTypeId]").bind('keypress', updateSubmitButtonState);
+        $("select[name=programTypeId]").bind('blur', updateSubmitButtonState);
+        $("select[name=programTypeId]").bind('input', updateSubmitButtonState);
+        $("input[name=sourceFile]").bind('change', updateSubmitButtonState);
+        $("input[name=sourceFile]").bind('keypress', updateSubmitButtonState);
+        $("input[name=sourceFile]").bind('blur', updateSubmitButtonState);
+        $("input[name=sourceFile]").bind('input', updateSubmitButtonState);
         updateSubmitButtonState();
     });
 
@@ -641,9 +702,9 @@ function submitButtomJquery(){
         
         const formData = new FormData(document.querySelector('.submit-form'));
     
-        for (const [key, value] of formData.entries()) {
-            console.log(key, value);
-        }
+        // for (const [key, value] of formData.entries()) {
+        //     console.log(key, value);
+        // }
 
         fetch(getCurrentURL().split('/').slice(0, 5).join('/')+'/submit?csrf_token='+formData.get('csrf_token'), {
             method: form.method,
@@ -652,6 +713,7 @@ function submitButtomJquery(){
         .then(response => {
             if (response.ok) {
                 location.reload();
+
             } else {
                 console.error('submit fail');
             }
