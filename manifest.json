@@ -1,0 +1,35 @@
+{
+    "manifest_version": 3,
+    "name": "Codeforces DomJudge UI",
+    "description": "The tool change the codeforces UI to DOMjudge",
+    "version": "1.0.0",
+    "host_permissions": [
+        "https://codeforces.com/*"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "https://codeforces.com/gym/*/submit*"
+            ],
+            "js": [
+                "content.js",
+                "all.min.js",
+                "jquery-1.8.3.js"
+            ],
+            "css": [
+                "styles/mycss.css"
+            ]
+        }
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_popup": "popup/index.html"
+    },
+    "permissions": [
+        "storage",
+        "tabs",
+        "windows"
+    ]    
+  }
