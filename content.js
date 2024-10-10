@@ -1,10 +1,10 @@
-chrome.storage.sync.get(['featureEnabled'], function (result) {
-    if (result.featureEnabled) {
-        // 功能開啟時執行的代碼
-        domjudgeView();
-    }
-});
-// domjudgeView();
+// chrome.storage.sync.get(['featureEnabled'], function (result) {
+//     if (result.featureEnabled) {
+//         // 功能開啟時執行的代碼
+//         domjudgeView();
+//     }
+// });
+domjudgeView();
 
 let contestStartTime = -1;
 // let contestStartTime = 1726755078;
@@ -104,6 +104,7 @@ function parseSubmission(result){
 }
 
 async function getApiData () {
+    domjudgeView();
     gymRound = getCurrentURL().split('/')[4];
     // console.log(gymRound);
 
@@ -123,7 +124,8 @@ async function getApiData () {
     .then(response => response.json())  // 將回應轉為 JSON 格式
     .then(data => {
         if (data.result && data.result.length > 0) {
-            contestStartTime = data.result[0].author.startTimeSeconds;
+            if("startTimeSeconds" in data.result[0].author)
+                contestStartTime = data.result[0].author.startTimeSeconds;
             parseSubmission(data.result);
             // return data.result[0].creationTimeSeconds;
         } else {
@@ -163,18 +165,19 @@ async function getApiData () {
                         teamname = team.party.teamName;
                     else
                     teamname = username;
-                break;
+                    break;
+                }
             }
+        } else {
+            console.log("No result found in Contest API response");
         }
-    } else {
-        console.log("No result found in Contest API response");
-    }
-})
-.then(() => drawTimeLine())
-.then(() => drawTeamsSummary())
-.then(() => drawSubmission())
-.then(() => addSubmitPage())
-.then(() => submitButtomJquery());
+    })
+    .then(() => drawTimeLine())
+    .then(() => updateTimeLine())
+    .then(() => drawTeamsSummary())
+    .then(() => drawSubmission())
+    .then(() => addSubmitPage())
+    .then(() => submitButtomJquery());
     // .catch(error => {
     //     console.error("Error fetching API:", error);
     // });
@@ -184,7 +187,7 @@ async function getApiData () {
 
 function updateTimeLine(){
     if(contestStartTime == -1)  return;
-    console.log((Date.now() / 1000 - contestStartTime), contestLength);
+    // console.log((Date.now() / 1000 - contestStartTime), contestLength);
     contestDuringPrecentage = (Date.now() / 1000 - contestStartTime) / contestLength;
     // contestDuringPrecentage = Math.random();
     if(contestDuringPrecentage > 1) {
@@ -234,7 +237,6 @@ function drawTimeLine(){
 }
 
 function drawHeader(){
-
     document.getElementById('body').style.margin = "0";
 
     // 選擇所有的 <a> 元素
@@ -271,7 +273,7 @@ function drawHeader(){
     navHTML += '</ul>';
     navHTML += '<div id="submitbut"><a id="submitLink" class="nav-link justify-content-center" data-ajax-modal="" data-ajax-modal-after="initSubmitModal" href="#"><span class="btn btn-success btn-sm"><i class="fas fa-cloud-upload-alt"></i> Submit</span></a></div>';
     navHTML += `<a class="btn btn-info btn-sm justify-content-center" href="${LogoutLink}" onclick="return confirmLogout();"><i class="fas fa-sign-out-alt"></i> Logout</a>`;
-    navHTML += `<div class="navbar-text" style="white-space:nowrap;"><span style="padding-left: 10px;"><i class="fas fa-clock loading-indicator"></i></span><span id="timeleft"> </span></div>`;
+    navHTML += `<div class="navbar-text" style="white-space:nowrap;"><span style="padding-left: 10px;"><i class="fas fa-clock loading-indicator"></i></span><span id="timeleft"> contest over</span></div>`;
     navHTML += '</div>';
 
     navElement.innerHTML = navHTML;
@@ -335,7 +337,7 @@ function drawTeamsSummary(){
         if(!(problemIndex in problemStatus))
             tableHTML += `<td class="score_cell"></td>`;
         else if(problemStatus[problemIndex].passtime != -1){
-            console.log(problemIndex, problemStatus[problemIndex].passtime, problemStatus[problemIndex].pending, problemStatus[problemIndex].pendingNumber);
+            // console.log(problemIndex, problemStatus[problemIndex].passtime, problemStatus[problemIndex].pending, problemStatus[problemIndex].pendingNumber);
             if(problemStatus[problemIndex].passtime > problemStatus[problemIndex].pending && problemStatus[problemIndex].pendingNumber != 0){
                 const tryTime = problemStatus[problemIndex].rejected;
                 const tryString = tryTime.toString() + " + " + (problemStatus[problemIndex].pendingNumber).toString() + " tries";
@@ -430,17 +432,20 @@ function domjudgeView() {
     }
 }
 
+
 // 監聽 DOM 的變化以處理動態更新的內容
 const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
         // 針對新增的節點，重新執行移除操作
         if (mutation.addedNodes.length) {
-            chrome.storage.sync.get(['featureEnabled'], function (result) {
-                if (result.featureEnabled) {
-                    domjudgeView();
-                    updateTimeLine();
-                }
-            });
+            // chrome.storage.sync.get(['featureEnabled'], function (result) {
+            //     if (result.featureEnabled) {
+            //         domjudgeView();
+            //         updateTimeLine();
+            //     }
+            // });
+            domjudgeView();
+            updateTimeLine();
         }
     });
 });
@@ -454,6 +459,36 @@ const observerConfig = {
 
 // 啟動監聽器
 observer.observe(document.body, observerConfig);
+
+function humanReadableTimeDiff(seconds) {
+    var intervals = [
+        ['years', 365 * 24 * 60 * 60],
+        ['months', 30 * 24 * 60 * 60],
+        ['days', 24 * 60 * 60],
+        ['hours', 60 * 60],
+        ['minutes', 60],
+    ];
+    for (let [name, length] of intervals) {
+        if (seconds / length >= 2) {
+            return Math.floor(seconds/length) + ' ' + name;
+        }
+    }
+    return Math.floor(seconds) + ' seconds';
+}
+
+function humanReadableBytes(bytes) {
+    var sizes = [
+      ['GB', 1024*1024*1024],
+      ['MB', 1024*1024],
+      ['KB', 1024],
+    ];
+    for (let [name, length] of sizes) {
+        if (bytes / length >= 2) {
+            return Math.floor(bytes/length) + name;
+        }
+    }
+    return Math.floor(bytes) + 'B';
+}
 
 function addSubmitPage(){
     // 創建模態框的 HTML
@@ -470,7 +505,6 @@ function addSubmitPage(){
     submitForm.querySelector(".error__submittedProblemIndex").remove();
 
     let submitButInput = submitTable.querySelector(".submit");
-    console.log(submitButInput)
     let buttonElement = document.createElement("button");
     buttonElement.id = submitButInput.id;
     buttonElement.type = submitButInput.type;
@@ -480,7 +514,6 @@ function addSubmitPage(){
 
     buttonElement.classList.add('btn');
     buttonElement.classList.add('btn-success');
-    console.log(buttonElement);
 
 
     const allowedLanguage = ["43", "89", "87", "31"];
@@ -508,48 +541,75 @@ function addSubmitPage(){
     noLanguageOption
     selectElement.insertBefore(noLanguageOption, selectElement.firstChild);
 
-    const modalHTML = `
-    <div id="myModal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <span class="close">&times;</span>`
-    + submitForm.outerHTML +
-    `</div>
-    </div>
-    <style>
-    .modal {
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgba(0,0,0,0.4);
-    }
-    .modal-content {
-        background-color: #fefefe;
-        margin: 15% auto;
-        padding: 20px;
-        border: 1px solid #888;
-        width: 80%;
-    }
-    .close {
-        color: #aaa;
-        float: right;
-        font-size: 28px;
-        font-weight: bold;
-    }
-    .close:hover,
-    .close:focus {
-        color: black;
-        text-decoration: none;
-        cursor: pointer;
-    }
-    </style>
-    `;
+    // console.log(submitForm.outerHTML);
 
+    // <span class="close">&times;</span>
+
+    submitForm.querySelector('select[name="submittedProblemIndex"]').querySelector('option[value=""]').remove();
+    let submit_problem_option = submitForm.querySelector('select[name="submittedProblemIndex"]').innerHTML;
+    let csrf_token_input = submitForm.querySelector('input[name="csrf_token"]').outerHTML;
+    // console.log(submit_problem_option);
+    
+    const modalHTML = `<div id="myModal" class="modal fade show" tabindex="-1" role="dialog" aria-modal="true" style="display: none;">
+    <div class="modal-dialog modal-lg" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Submit</h5><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button></div>
+<form class="submit-form" name="csrf_token" method="post" action="/team/submit" enctype="multipart/form-data">`
+    + csrf_token_input +
+    `<input type="hidden" name="ftaa" value="">
+    <input type="hidden" name="bfaa" value="">
+    <input type="hidden" name="action" value="submitSolutionFormSubmitted">
+    <div class="modal-body">
+    <div class="form-group"><label for="submit_problem_code" class="required">Source files</label><div class="custom-file"><input type="file" id="submit_problem_code" name="sourceFile" required="required" class="custom-file-input custom-file-input"><label class="custom-file-label text-truncate text-muted" for="submit_problem_code">No file selected</label></div></div>
+    <div class="alert alert-warning" id="files_not_modified" style="display:none;"></div>
+    <div class="form-group"><label class="required" for="submit_problem_problem">Problem</label><select id="submit_problem_problem" name="submittedProblemIndex" required="required" class="form-control custom-select form-control"><option value="" selected="selected">Select a problem</option>` + submit_problem_option + `</select></div>
+    <div class="form-group"><label class="required" for="submit_problem_language">Language</label><select id="submit_problem_language" name="programTypeId" required="required" class="form-control custom-select form-control"><option value="" selected="selected">Select a language</option><option value="43">C</option><option value="89">C++</option><option value="87">Java</option><option value="31">Python 3</option></select></div></div>
+    <div class="modal-footer"><button id="cancelBtn" type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button><button type="submit" class="btn-success btn"><i class="fas fa-cloud-upload-alt"></i> Submit </button></div><input type="hidden" name="_tta" value="396"></form></div></div>
+    </div>`;
+    
     // 插入模態框到頁面中
     document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    $(function () {
+        $('body').on('change', '.custom-file-input', function () {
+            var files = this.files;
+            var fileNames = [];
+            for (var i = 0; i < files.length; i++) {
+                fileNames.push(files.item(i).name);
+            }
+            $(this).next('.custom-file-label').html(fileNames.join(", "));
+            $(this).next('.custom-file-label').removeClass('text-muted');
+        });
+    });
+
+    const fileInput = document.getElementById('submit_problem_code');
+    fileInput.addEventListener('change', (event) => {
+
+        const five_minutes_in_ms = 5 * 60 * 1000;
+        const now = Date.now();
+        const filesNotModified = document.getElementById('files_not_modified');
+        filesNotModified.style.display = 'none';
+
+        var atLeastOneFileRecent = false;
+        var fileInfoHtml = '';
+        const files = event.target.files;
+        for (let file of files) {
+            const date = new Date(file.lastModified);
+            const ago = humanReadableTimeDiff((now - date)/1000) + ' ago';
+            if (date > now - five_minutes_in_ms) {
+                atLeastOneFileRecent = true;
+            }
+            size = humanReadableBytes(file.size);
+            fileInfoHtml += `<li><span class="filename">${file.name}</span>, ${size}, last modified ${ago}</li>`;
+        }
+        if (!atLeastOneFileRecent) {
+            filesNotModified.style.display = 'block';
+            filesNotModified.innerHTML =
+                'None of the selected files has been recently modified:' +
+                '<ul>' + fileInfoHtml + '</ul>';
+        }
+    });
+
+    const modal_backdrop_html = `<div class="modal-backdrop fade show" style="display:none;"></div>`;
+    document.body.insertAdjacentHTML('beforeend', modal_backdrop_html);
 
     // 把 input 按鈕換成 button
     // submitButInput = document.getElementById("singlePageSubmitButton");
@@ -560,140 +620,107 @@ function addSubmitPage(){
     const modal = document.getElementById('myModal');
     const openModal = document.getElementById('submitbut');
     const closeModal = document.querySelector('.close');
+    const cancelModal = document.getElementById('cancelBtn');
+    const modal_backdrop = document.querySelector('.modal-backdrop');
+    const filesNotModified = document.getElementById('files_not_modified');
 
     // 當用戶點擊連結時，顯示模態框
     openModal.addEventListener('click', function(event) {
-    event.preventDefault(); // 防止連結跳轉
-    modal.style.display = 'block';
+        event.preventDefault(); // 防止連結跳轉
+        modal.style.display = 'block';
+        modal_backdrop.style.display = 'block';
     });
 
     // 當用戶點擊關閉按鈕時，隱藏模態框
     closeModal.addEventListener('click', function() {
-    modal.style.display = 'none';
+        modal.style.display = 'none';
+        modal_backdrop.style.display = 'none';
+        filesNotModified.style.display = 'none';
     });
 
     // 當用戶點擊模態框外部時，隱藏模態框
     window.addEventListener('click', function(event) {
-    if (event.target === modal) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+            modal_backdrop.style.display = 'none';
+            filesNotModified.style.display = 'none';
+        }
+    });
+
+    cancelModal.addEventListener('click', function() {
         modal.style.display = 'none';
-    }
+        modal_backdrop.style.display = 'none';
+        filesNotModified.style.display = 'none';
     });
 }
 
+
+function getMainExtension(ext) {
+    switch (ext) {
+        case 'c':
+            return '43';
+        case 'cpp':
+            return '89';
+        case 'cc':
+            return '89';
+        case 'cxx':
+            return '89';
+        case 'c++':
+            return '89';
+        case 'java':
+            return '87';
+        case 'py':
+            return '31';
+        default:
+            return '';
+    }
+}
+
+
 function submitButtomJquery(){
-    
+
     $(document).ready(function () {
-    {
-    }
-
-    $("select[name=submittedProblemIndex]").change(function () {
-        let problemIndex = $(this).val();
-        $(".next-available-submission-time").hide();
-        if (problemIndex !== "") {
-            $(".next-available-submission-time.for-problem-" + problemIndex).show();
+        {
         }
+        var processFile = function () {
+            var filename = $('#submit_problem_code').val();
+            if (filename !== '' && filename !== undefined) {
+                filename = filename.replace(/^.*[\\\/]/, '');
+                var parts = filename.split('.').reverse();
+                if (parts.length < 2) return;
+                var lcParts = [parts[0].toLowerCase(), parts[1].toLowerCase()];
+        
+                // language ID
+        
+                var language = document.getElementById('submit_problem_language');
+                // the "autodetect" option has empty value
+                if (language.value !== '') return;
+        
+                var langid = getMainExtension(lcParts[0]);
+                for (i = 0; i < language.length; i++) {
+                    if (language.options[i].value === langid) {
+                        language.selectedIndex = i;
+                    }
+                }
+        
+                // Problem ID
+        
+                var problem = document.getElementById('submit_problem_problem');
+                // the "autodetect" option has empty value
+                if (problem.value !== '') {
+                    return;
+                }
+        
+                for (var i = 0; i < problem.length; i++) {
+                    if (problem.options[i].text.split(/ - /)[0].toLowerCase() === lcParts[1]) {
+                        problem.selectedIndex = i;
+                    }
+                }
+            }
+        };
+        var $body = $('body');
+        $body.on('change', '#submit_problem_code', processFile);
     });
-
-    function updateFilesAndLimits() {
-    if ("false" === "true") {
-    return;
-    }
-
-    var problemFiles = $("#submittedProblemFiles");
-    var problemLimits = $("#submittedProblemLimits");
-
-    var problemIndex = $("select[name=submittedProblemIndex]").val();
-    var option = $("select[name=submittedProblemIndex] option:selected");
-
-    var timeLimit = option.attr("data-time-limit");
-    var memoryLimit = option.attr("data-memory-limit");
-    var inputFile = option.attr("data-input-file");
-    var outputFile = option.attr("data-output-file");
-
-    if (problemIndex == "") {
-    problemFiles.text("");
-    problemLimits.text("");
-    } else {
-    var filesStyle = "float: left; font-weight: bold";
-    if (inputFile == "") {
-    if (outputFile == "") {
-    filesStyle = "float: left;";
-    problemFiles.text("standard input/output");
-    } else {
-    problemFiles.text("standard input / " + outputFile);
-    }
-    } else {
-    if (outputFile == "") {
-    problemFiles.text(inputFile + " / standard output")
-    } else {
-    problemFiles.text(inputFile + " / " + outputFile);
-    }
-    }
-
-    problemFiles.attr("style", filesStyle);
-    problemLimits.text(timeLimit + " s, " + memoryLimit + " MB");
-    }
-    }
-
-        function updateSubmitButtonState() {
-
-            var problemIndex = $("select[name=submittedProblemIndex]").val();
-            var programType = $("select[name=programTypeId]").val();
-            var fileInput = $("input[name=sourceFile]").val();
-
-            console.log(fileInput);
-            updateFilesAndLimits();
-
-            if (fileInput != ""){
-                if(fileInput.endsWith(".c")){
-                    document.querySelector('select[name="programTypeId"]').value = "43";
-                }
-                else if(fileInput.endsWith(".cpp")){
-                    document.querySelector('select[name="programTypeId"]').value = "89";
-                }
-                else if(fileInput.endsWith(".java")){
-                    document.querySelector('select[name="programTypeId"]').value = "87";
-                }
-                else if(fileInput.endsWith(".py")){
-                    document.querySelector('select[name="programTypeId"]').value = "31";
-                }
-            }
-            if (problemIndex == "") {
-                $(".submit-form :submit").attr("disabled", "disabled");
-            } 
-            else if(programType == "0") {
-                $(".submit-form :submit").attr("disabled", "disabled");
-            }
-            else if (fileInput == ""){
-                $(".submit-form :submit").attr("disabled", "disabled");
-            }
-            else {
-                $(".submit-form :submit").removeAttr("disabled");
-            }
-        }
-
-        $("select[name=submittedProblemIndex]").bind('change', updateSubmitButtonState);
-        $("select[name=submittedProblemIndex]").bind('keypress', updateSubmitButtonState);
-        $("select[name=submittedProblemIndex]").bind('blur', updateSubmitButtonState);
-        $("select[name=submittedProblemIndex]").bind('input', updateSubmitButtonState);
-        $("select[name=programTypeId]").bind('change', updateSubmitButtonState);
-        $("select[name=programTypeId]").bind('keypress', updateSubmitButtonState);
-        $("select[name=programTypeId]").bind('blur', updateSubmitButtonState);
-        $("select[name=programTypeId]").bind('input', updateSubmitButtonState);
-        $("input[name=sourceFile]").bind('change', updateSubmitButtonState);
-        $("input[name=sourceFile]").bind('keypress', updateSubmitButtonState);
-        $("input[name=sourceFile]").bind('blur', updateSubmitButtonState);
-        $("input[name=sourceFile]").bind('input', updateSubmitButtonState);
-        updateSubmitButtonState();
-    });
-
-    // document.addEventListener('DOMContentLoaded', function() {
-    //     const form = document.querySelector('.submit-form');
-    
-    //     form.addEventListener('submit', function(event) {
-    //         form.action = getCurrentURL().split('/').slice(0, 5).join('/') + '/submit'; // 替换为你希望跳转的 URL
-    //     });
-    // });
     
     const form = document.querySelector('.submit-form');
     
@@ -706,18 +733,63 @@ function submitButtomJquery(){
         //     console.log(key, value);
         // }
 
-        fetch(getCurrentURL().split('/').slice(0, 5).join('/')+'/submit?csrf_token='+formData.get('csrf_token'), {
-            method: form.method,
-            body: formData,
-        })
-        .then(response => {
-            if (response.ok) {
-                location.reload();
+        var langelt = document.getElementById("submit_problem_language");
+        var language = langelt.options[langelt.selectedIndex].value;
+        var languagetxt = langelt.options[langelt.selectedIndex].text;
+        var fileelt = document.getElementById("submit_problem_code");
+        var filenames = fileelt.files;
+        var filename = filenames[0].name;
+        var probelt = document.getElementById("submit_problem_problem");
+        var problem = probelt.options[probelt.selectedIndex].value;
+        var problemtxt = probelt.options[probelt.selectedIndex].text;
 
-            } else {
-                console.error('submit fail');
+        var error = false;
+        if (language === "") {
+            langelt.focus();
+            langelt.className = langelt.className + " errorfield";
+            error = true;
+        }
+        if (problem === "") {
+            probelt.focus();
+            probelt.className = probelt.className + " errorfield";
+            error = true;
+        }
+        if (filename === "") {
+            error = true;
+        }
+        if (error) return false;
+
+        var auxfileno = 0;
+        // start at one; skip maincode file field
+        for (var i = 1; i < filenames.length; i++) {
+            if (filenames[i].value !== "") {
+                auxfileno++;
             }
-        });
+        }
+        var extrafiles = '';
+        if (auxfileno > 0) {
+            extrafiles = "Additional source files: " + auxfileno + '\n';
+        }
+        var question =
+            'Main source file: ' + filename + '\n' +
+            extrafiles + '\n' +
+            'Problem: ' + problemtxt + '\n' +
+            'Language: ' + languagetxt + '\n' +
+            '\nMake submission?';
+        if(confirm(question)){
+            fetch(getCurrentURL().split('/').slice(0, 5).join('/')+'/submit?csrf_token='+formData.get('csrf_token'), {
+                method: form.method,
+                body: formData,
+            })
+            .then(response => {
+                if (response.ok) {
+                    location.reload();
+
+                } else {
+                    console.error('submit fail');
+                }
+            });
+        }
         // .catch(error => {
         //     console.error('error: ', error);
         // });
